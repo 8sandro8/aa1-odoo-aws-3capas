@@ -1,7 +1,7 @@
 # AA1 - Odoo 19 en AWS con arquitectura de 3 capas en alta disponibilidad
 
 Módulo: Diseño, implementación y gestión de infraestructuras cloud y DevOps (2º DAM)
-Alumno: [nombre y apellidos]
+Alumno: Sandro López Díaz
 Entrega: 26 de enero de 2027
 
 En este repositorio no hay contraseñas, claves ni endpoints reales. Van como `<CAMBIAR>`.
