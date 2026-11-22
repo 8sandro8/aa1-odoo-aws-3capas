@@ -125,6 +125,8 @@ El Auto Scaling Group puede eliminar una instancia en cualquier momento (si baja
 
 Así, una instancia nueva solo tiene que conectarse a la misma base de datos y montar el mismo EFS para quedar lista, sin perder nada. Da igual qué camarero esté de turno.
 
+Por qué RDS y no PostgreSQL en una EC2: montar la base de datos en una EC2 sería comprar la caja fuerte y encargarme yo de las copias, la cerradura y los fallos. Con RDS contrato a una empresa que lleva la caja fuerte por mí (copias, cifrado, parches y cambio a la copia si falla): cuesta más, pero no me preocupo de nada de eso.
+
 ### 1.7 Estimación de costes
 
 ## Fase 2. Capa de red y seguridad
