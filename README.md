@@ -80,6 +80,13 @@ Los elementos del esquema, agrupados por lo que hacen.
 | Amazon RDS for PostgreSQL Multi-AZ | La base de datos de Odoo, gestionada por AWS. Tiene una instancia principal en la AZ A y una standby en la AZ B con réplica síncrona; si falla la principal, AWS promociona la standby sola (failover). Está en las subredes de datos (DB subnet group), sin acceso público, y solo acepta conexiones de SG-EC2. |
 
 ### 1.3 Diagrama propio
+
+Este es mi esquema de la arquitectura de 3 capas. El tráfico entra desde Internet por el Internet Gateway hasta el balanceador (ALB), que reparte entre los servidores Odoo de las dos zonas. Los Odoo comparten los ficheros en el EFS y hablan con la base de datos RDS: la primaria está en la zona A y la standby en la zona B, que se activa sola si cae la primaria. El NAT y el bastion están en la zona A.
+
+![Esquema de la arquitectura de 3 capas de Odoo en AWS](diagrama/esquema_3capas_odoo_aws.png)
+
+Archivo editable de Excalidraw: [esquema_3capas_odoo_aws.excalidraw](diagrama/esquema_3capas_odoo_aws.excalidraw)
+
 ### 1.4 Plan de direccionamiento y tablas de rutas
 
 Plan de direccionamiento de la VPC `odoo-vpc` (10.100.0.0/16), repartida en dos zonas de disponibilidad (AZ A y AZ B):
