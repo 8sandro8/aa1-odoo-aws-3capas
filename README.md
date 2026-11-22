@@ -22,7 +22,37 @@ Un monolito es una aplicación que está entera en un solo servidor: la aplicaci
 **Para la empresa de Zaragoza** esto es un problema, porque necesita seguir funcionando y facturando aunque algo falle. Por eso se migra a AWS con copias iguales de la aplicación repartidas en varias zonas de disponibilidad (centros de datos independientes): si una falla, las otras siguen dando servicio (redundancia).
 
 ### 1.2 Elementos del esquema
-(VPC, subredes, IGW, NAT Gateway, bastion, ALB, Target Group, Launch Template, ASG, EC2 con Docker, EFS, RDS Multi-AZ, grupos de seguridad)
+Los elementos del esquema, agrupados por lo que hacen.
+
+#### Red y acceso
+
+| Elemento | Qué es y qué hace en esta arquitectura |
+|---|---|
+| VPC (`odoo-vpc`, 10.100.0.0/16) | Nuestra red privada dentro de AWS, aislada del resto. Todo lo demás se monta dentro de ella. Tiene activados DNS hostnames y DNS resolution, que hacen falta para montar EFS por su nombre DNS. |
+| Zonas de disponibilidad (AZ A y AZ B) | Centros de datos independientes de la misma región. Repartir cada capa entre las dos es lo que da la alta disponibilidad. |
+| Subredes | Trozos de la VPC. Hay 6, tres en cada AZ: públicas (tienen ruta al IGW), de aplicación (privadas, salen a Internet por el NAT) y de datos (privadas y sin salida a Internet). |
+| Internet Gateway (IGW) | La puerta que conecta la VPC con Internet. Las subredes públicas lo usan para entrar y salir. |
+| NAT Gateway | Deja que las instancias de las subredes privadas salgan a Internet (instalar paquetes, descargar la imagen de Docker) sin que nadie de fuera pueda iniciar una conexión hacia ellas. Va en la subred pública de la AZ A, con una IP elástica, porque necesita salir por el IGW. Solo hay uno. |
+| Bastion host | Una EC2 pequeña (t3.micro) en la subred pública A. Es el único sitio por el que se entra por SSH a las instancias privadas (con `ssh -J`). Su grupo de seguridad solo deja entrar desde mi IP. |
+| Grupos de seguridad (SG) | Cortafuegos con estado que se asocian a cada recurso. Se encadenan (el origen de cada regla es otro SG) para que cada capa solo hable con la siguiente. Ver 1.5. |
+
+#### Capa de aplicación
+
+| Elemento | Qué es y qué hace en esta arquitectura |
+|---|---|
+| Application Load Balancer (ALB) | Balanceador de capa 7 (HTTP) expuesto a Internet en las dos subredes públicas. Recibe las peticiones de los usuarios por el puerto 80, las reparte entre los servidores Odoo y solo envía tráfico a los que están sanos. Es la única entrada pública a la aplicación. |
+| Target Group | El grupo de destinos del ALB, es decir, la lista de instancias Odoo. Comprueba su salud con un health check HTTP a `/web/login` (códigos 200-399). Si una falla, el ALB deja de enviarle tráfico. |
+| Launch Template | La plantilla con la que se crea cada instancia Odoo nueva: Ubuntu Server 24.04, t3.small o t3.medium, SG-EC2, sin IP pública y el script de arranque (user-data) 02. |
+| Auto Scaling Group (ASG) | Mantiene entre 2 y 4 instancias Odoo (deseada 2) repartidas entre las dos subredes de aplicación. Si una falla, la sustituye; si sube la carga, crea más (política de seguimiento de objetivo, por ejemplo CPU media al 50 %). Usa el health check del ELB y un periodo de gracia de 600 s para dar tiempo a que cada instancia arranque. |
+| EC2 con Docker | Cada instancia es un Ubuntu con Docker que ejecuta la imagen oficial `odoo:19.0`. Odoo es el ERP que usan los usuarios. La instalación la hace el user-data al arrancar. |
+
+#### Datos
+
+| Elemento | Qué es y qué hace en esta arquitectura |
+|---|---|
+| Amazon EFS | Sistema de ficheros compartido por NFS. Se monta en todas las instancias como `/var/lib/odoo` del contenedor, con un punto de montaje en cada subred de aplicación. Ahí se guardan los adjuntos (filestore) y las sesiones, así que son los mismos vengan de la instancia que vengan. Su SG solo deja entrar el puerto 2049 desde SG-EC2. |
+| Amazon RDS for PostgreSQL Multi-AZ | La base de datos de Odoo, gestionada por AWS. Tiene una instancia principal en la AZ A y una standby en la AZ B con réplica síncrona; si falla la principal, AWS promociona la standby sola (failover). Está en las subredes de datos (DB subnet group), sin acceso público, y solo acepta conexiones de SG-EC2. |
+
 ### 1.3 Diagrama propio
 ### 1.4 Plan de direccionamiento y tablas de rutas
 
