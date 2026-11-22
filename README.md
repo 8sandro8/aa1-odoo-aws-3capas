@@ -85,8 +85,6 @@ Este es mi esquema de la arquitectura de 3 capas. El tráfico entra desde Intern
 
 ![Esquema de la arquitectura de 3 capas de Odoo en AWS](diagrama/esquema_3capas_odoo_aws.png)
 
-Archivo editable de Excalidraw: [esquema_3capas_odoo_aws.excalidraw](diagrama/esquema_3capas_odoo_aws.excalidraw)
-
 ### 1.4 Plan de direccionamiento y tablas de rutas
 
 Plan de direccionamiento de la VPC `odoo-vpc` (10.100.0.0/16), repartida en dos zonas de disponibilidad (AZ A y AZ B):
