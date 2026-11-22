@@ -134,6 +134,43 @@ Por qué RDS y no PostgreSQL en una EC2: montar la base de datos en una EC2 ser�
 
 ### 1.7 Estimación de costes
 
+La estimación la he hecho con la AWS Pricing Calculator, en la región Norte de Virginia (us-east-1, la del laboratorio). He supuesto todo encendido las 24 horas del mes (730 horas) y precios bajo demanda, que es lo único que deja usar el laboratorio.
+
+Enlace a la estimación: https://calculator.aws/#/estimate?id=fb0445b65c63e7efc85ade678ab730d41ef1f7f6 (el enlace caduca al año, por eso dejo también las capturas).
+
+![Resumen de la estimación en la AWS Pricing Calculator](evidencias/fase1/F1_01_estimacion_resumen.jpg)
+
+![Servicios de la estimación en la AWS Pricing Calculator](evidencias/fase1/F1_02_estimacion_servicios.jpg)
+
+| Pieza | Qué he puesto en la calculadora | Coste al mes |
+|---|---|---|
+| EC2 de Odoo (Auto Scaling Group) | 2 × t3.small, Linux, disco de 8 GB gp3 cada una | 31,65 $ |
+| EC2 bastion | 1 × t3.micro, disco de 8 GB gp3 | 8,23 $ |
+| Application Load Balancer | 1 balanceador, tráfico pequeño (1 GB por hora, 1 LCU) | 22,27 $ |
+| NAT Gateway e IPv4 públicas | 1 NAT con 10 GB al mes y 4 IPv4 públicas (NAT, bastion y las 2 del balanceador) | 47,90 $ |
+| RDS PostgreSQL | db.t3.micro Multi-AZ, 20 GB gp2 | 30,88 $ |
+| EFS | 1 GB, con poco tráfico | 0,51 $ |
+| **Total** | | **141,44 $ al mes (1.697,28 $ al año)** |
+
+**Qué es lo que más cuesta y por qué**
+
+- **La red (NAT e IPv4): 47,90 $, casi un tercio del total.** El NAT Gateway se paga por cada hora que está encendido, pase tráfico o no. Es como el alquiler del local de una cafetería: se paga abra o no la puerta (NAT Gateway). Las IPv4 públicas también se cobran por hora.
+- **RDS Multi-AZ: 30,88 $.** Se paga una segunda base de datos de reserva (standby) en otra zona. Es el precio de que la base de datos aguante la caída de una zona de disponibilidad.
+- **El balanceador: 22,27 $.** También se cobra por hora de funcionamiento.
+- **Las EC2 son lo más barato por pieza.** Cada t3.small con su disco sale por unos 16 $ y el bastion por unos 8 $. Entre las tres suman 39,88 $. Si el Auto Scaling Group escalara hasta las 4 instancias, serían unos 32 $ más mientras dure la carga.
+
+**Cosas a tener en cuenta**
+
+- La calculadora obliga a rellenar el apartado «Gateway NAT regional». Como mi arquitectura tiene un solo NAT, he puesto 1 NAT regional en 1 zona (cuesta lo mismo: 0,045 $ por hora y 0,045 $ por GB) y 0 en el NAT normal. El resultado es el de un único NAT.
+- No incluye impuestos, el tráfico de salida a Internet, las copias de seguridad de RDS por encima del espacio gratuito ni extras que mi arquitectura no usa (RDS Proxy, soporte ampliado de RDS, etc.).
+- Aunque se paren las EC2, siguen cobrando el NAT, el balanceador, RDS, las IP, EFS y los discos: unos 100 $ al mes (suma mía de esas filas). Lo caro no es montar la arquitectura, sino dejarla encendida muchos días.
+
+**Cómo se podría bajar el coste**
+
+- Montar, probar y documentar, y borrar todo en orden inverso al terminar la sesión.
+- Usar un solo NAT Gateway en vez de uno por zona ahorra unos 33 $ al mes, a cambio de que la salida a Internet de las instancias privadas dependa de una sola zona.
+- Mantener instancias pequeñas (t3.micro y t3.small) mientras la carga lo permita.
+
 ## Fase 2. Capa de red y seguridad
 (pendiente)
 
