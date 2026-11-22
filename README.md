@@ -54,13 +54,13 @@ Los elementos del esquema, agrupados por lo que hacen.
 
 | Elemento | Qué es y qué hace en esta arquitectura |
 |---|---|
-| VPC (`odoo-vpc`, 10.100.0.0/16) | Nuestra red privada dentro de AWS, aislada del resto. Todo lo demás se monta dentro de ella. Tiene activados DNS hostnames y DNS resolution, que hacen falta para montar EFS por su nombre DNS. |
+| VPC (`odoo-vpc`, 10.100.0.0/16) | Es el local entero con sus paredes: nuestra red privada dentro de AWS, aislada del resto, y todo lo demás se monta dentro. Tiene activados DNS hostnames y DNS resolution, que hacen falta para montar EFS por su nombre DNS. |
 | Zonas de disponibilidad (AZ A y AZ B) | Centros de datos independientes de la misma región. Repartir cada capa entre las dos es lo que da la alta disponibilidad. |
 | Subredes | Trozos de la VPC. Hay 6, tres en cada AZ: públicas (tienen ruta al IGW), de aplicación (privadas, salen a Internet por el NAT) y de datos (privadas y sin salida a Internet). |
-| Internet Gateway (IGW) | La puerta que conecta la VPC con Internet. Las subredes públicas lo usan para entrar y salir. |
+| Internet Gateway (IGW) | Es la puerta de la calle del local: por ahí entra y sale todo lo que es público. Conecta la VPC con Internet y solo la usan las subredes públicas. |
 | NAT Gateway | Deja que las instancias de las subredes privadas salgan a Internet (instalar paquetes, descargar la imagen de Docker) sin que nadie de fuera pueda iniciar una conexión hacia ellas. Va en la subred pública de la AZ A, con una IP elástica, porque necesita salir por el IGW. Solo hay uno. |
 | Bastion host | Una EC2 pequeña (t3.micro) en la subred pública A. Es el único sitio por el que se entra por SSH a las instancias privadas (con `ssh -J`). Su grupo de seguridad solo deja entrar desde mi IP. |
-| Grupos de seguridad (SG) | Cortafuegos con estado que se asocian a cada recurso. Se encadenan (el origen de cada regla es otro SG) para que cada capa solo hable con la siguiente. Ver 1.5. |
+| Grupos de seguridad (SG) | Son el portero de cada puerta, con su lista de quién puede pasar y por dónde. Son cortafuegos con estado que se asocian a cada recurso y se encadenan (el origen de cada regla es otro SG), así cada capa solo habla con la siguiente. Ver 1.5. |
 
 #### Capa de aplicación
 
@@ -68,8 +68,8 @@ Los elementos del esquema, agrupados por lo que hacen.
 |---|---|
 | Application Load Balancer (ALB) | Balanceador de capa 7 (HTTP) expuesto a Internet en las dos subredes públicas. Recibe las peticiones de los usuarios por el puerto 80, las reparte entre los servidores Odoo y solo envía tráfico a los que están sanos. Es la única entrada pública a la aplicación. |
 | Target Group | El grupo de destinos del ALB, es decir, la lista de instancias Odoo. Comprueba su salud con un health check HTTP a `/web/login` (códigos 200-399). Si una falla, el ALB deja de enviarle tráfico. |
-| Launch Template | La plantilla con la que se crea cada instancia Odoo nueva: Ubuntu Server 24.04, t3.small o t3.medium, SG-EC2, sin IP pública y el script de arranque (user-data) 02. |
-| Auto Scaling Group (ASG) | Mantiene entre 2 y 4 instancias Odoo (deseada 2) repartidas entre las dos subredes de aplicación. Si una falla, la sustituye; si sube la carga, crea más (política de seguimiento de objetivo, por ejemplo CPU media al 50 %). Usa el health check del ELB y un periodo de gracia de 600 s para dar tiempo a que cada instancia arranque. |
+| Launch Template | Es la ficha para formar a un camarero nuevo: dice cómo es cada instancia Odoo que se crea (Ubuntu Server 24.04, t3.small o t3.medium, SG-EC2, sin IP pública y el script de arranque, user-data, 02). |
+| Auto Scaling Group (ASG) | Es el encargado de turnos: mantiene entre 2 y 4 camareros (instancias Odoo, deseada 2) repartidos entre las dos subredes de aplicación. Si uno falla pone otro y si hay mucha gente suma más (política de seguimiento de objetivo, por ejemplo CPU media al 50 %). Usa el health check del ELB y un periodo de gracia de 600 s para dar tiempo a que cada instancia arranque. |
 | EC2 con Docker | Cada instancia es un Ubuntu con Docker que ejecuta la imagen oficial `odoo:19.0`. Odoo es el ERP que usan los usuarios. La instalación la hace el user-data al arrancar. |
 
 #### Datos
