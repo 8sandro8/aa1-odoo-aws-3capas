@@ -21,6 +21,32 @@ Un monolito es una aplicación que está entera en un solo servidor: la aplicaci
 
 **Para la empresa de Zaragoza** esto es un problema, porque necesita seguir funcionando y facturando aunque algo falle. Por eso se migra a AWS con copias iguales de la aplicación repartidas en varias zonas de disponibilidad (centros de datos independientes): si una falla, las otras siguen dando servicio (redundancia).
 
+#### Arquitectura de 2 capas
+
+Aquí se separa la aplicación de la base de datos. Odoo corre en varios servidores EC2 repartidos en dos zonas de disponibilidad, detrás de un balanceador (ALB). La base de datos está en RDS Multi-AZ, con una principal y una standby en la otra zona. Los ficheros de Odoo van en un EFS compartido y un Auto Scaling Group añade o quita servidores según la carga. Es como tener dos cafeterías con la misma carta y una caja fuerte con copia en otro local: si una se cierra, la otra sigue sirviendo.
+
+Frente al monolito aguanta mucho mejor los fallos, porque ya no depende de un solo servidor ni de una sola zona, y además puede escalar añadiendo servidores. Su punto débil es la seguridad: los servidores Odoo siguen en subredes públicas con IP pública. Si alguien encuentra un fallo en un Odoo mal securizado, puede entrar en él y saltar a los demás servidores y a la base de datos.
+
+#### Arquitectura de 3 capas
+
+Se separa en tres capas y las dos últimas pasan a red privada. Los usuarios, y también los atacantes, solo pueden entrar por el balanceador. Es como una cafetería con un recepcionista en la puerta (el ALB): los clientes solo hablan con él, y los camareros y la caja fuerte están dentro, sin puerta a la calle.
+
+| Capa | Qué contiene | Quién puede llegar |
+|---|---|---|
+| Presentación (pública) | ALB, NAT Gateway y bastion, en las subredes públicas | Los usuarios, solo por el ALB (puerto 80). El bastion, solo desde mi IP. |
+| Aplicación (privada) | Servidores EC2 con Docker y Odoo (Auto Scaling Group) y EFS | Solo el ALB por el puerto 80 y el bastion por SSH. |
+| Datos (privada) | RDS PostgreSQL Multi-AZ | Solo los servidores Odoo, por el puerto 5432. |
+
+#### Comparación
+
+| | Monolito | 2 capas | 3 capas |
+|---|---|---|---|
+| Dónde está todo | Odoo, base de datos y ficheros en un solo servidor | Odoo en varios servidores en subredes públicas; base de datos aparte, en RDS Multi-AZ | Odoo y base de datos en subredes privadas; en las públicas solo el ALB, el NAT y el bastion |
+| Si falla un servidor o una zona | Se cae todo | Sigue funcionando con los servidores y la base de datos de la otra zona | Igual que en 2 capas |
+| Escalado | Solo vertical (una máquina más grande) | Horizontal, con Auto Scaling Group | Horizontal, con Auto Scaling Group |
+| Seguridad | Todo en una sola máquina, normalmente pública | Los servidores Odoo están expuestos: un fallo en uno puede llegar a los demás y a la base de datos | La única entrada es el ALB; Odoo y la base de datos no son accesibles desde Internet |
+| Coste y complejidad | El más barato y el más sencillo | Más caro: varios servidores, RDS Multi-AZ y ALB | El más caro y complejo: añade NAT y bastion (el NAT y RDS cobran por hora) |
+
 ### 1.2 Elementos del esquema
 Los elementos del esquema, agrupados por lo que hacen.
 
