@@ -46,6 +46,18 @@ Tablas de rutas:
 | odoo-rt-data | 10.100.0.0/16 → local (sin salida a Internet) | odoo-data-a, odoo-data-b |
 
 ### 1.5 Grupos de seguridad
+
+Tabla de los 5 grupos de seguridad, encadenados entre sí: cada capa solo admite tráfico de la anterior. El origen de las reglas es otro grupo de seguridad y no una IP, porque así las instancias nuevas del ASG ya tienen permiso sin tocar nada.
+
+| Grupo | Se asocia a | Entrada | Origen | Por qué |
+|---|---|---|---|---|
+| SG-ALB | ALB | HTTP 80 | 0.0.0.0/0 | Es la única puerta pública: los usuarios llegan desde cualquier IP. |
+| SG-Bastion | Bastion | SSH 22 | Mi IP | Solo yo administro. Si estuviera abierto a todo Internet, cualquiera podría intentar entrar. |
+| SG-EC2 (Odoo) | Instancias Odoo | HTTP 80 | SG-ALB | Odoo solo atiende al balanceador, nadie puede saltarse el ALB. |
+| SG-EC2 (Odoo) | Instancias Odoo | SSH 22 | SG-Bastion | A las instancias privadas solo se entra saltando por el bastion. |
+| SG-EFS | Puntos de montaje de EFS | NFS 2049 | SG-EC2 | Solo los servidores Odoo pueden montar los ficheros compartidos. |
+| SG-Postgres | RDS | 5432 | SG-EC2 | Solo los servidores Odoo hablan con la base de datos. |
+
 ### 1.6 Por qué Odoo necesita EFS y RDS
 ### 1.7 Estimación de costes
 
