@@ -25,6 +25,26 @@ Un monolito es una aplicación que está entera en un solo servidor: la aplicaci
 (VPC, subredes, IGW, NAT Gateway, bastion, ALB, Target Group, Launch Template, ASG, EC2 con Docker, EFS, RDS Multi-AZ, grupos de seguridad)
 ### 1.3 Diagrama propio
 ### 1.4 Plan de direccionamiento y tablas de rutas
+
+Plan de direccionamiento de la VPC `odoo-vpc` (10.100.0.0/16), repartida en dos zonas de disponibilidad (AZ A y AZ B):
+
+| Subred | CIDR | AZ | Tipo | Tabla de rutas | Recursos |
+|---|---|---|---|---|---|
+| odoo-public-a | 10.100.1.0/24 | A | Pública | odoo-rt-public | ALB, NAT Gateway, bastion |
+| odoo-public-b | 10.100.2.0/24 | B | Pública | odoo-rt-public | ALB |
+| odoo-app-a | 10.100.3.0/24 | A | Privada (aplicación) | odoo-rt-app | EC2 Odoo, EFS |
+| odoo-app-b | 10.100.4.0/24 | B | Privada (aplicación) | odoo-rt-app | EC2 Odoo, EFS |
+| odoo-data-a | 10.100.5.0/24 | A | Privada (datos) | odoo-rt-data | RDS principal |
+| odoo-data-b | 10.100.6.0/24 | B | Privada (datos) | odoo-rt-data | RDS standby |
+
+Tablas de rutas:
+
+| Tabla | Rutas | Subredes asociadas |
+|---|---|---|
+| odoo-rt-public | 10.100.0.0/16 → local; 0.0.0.0/0 → Internet Gateway | odoo-public-a, odoo-public-b |
+| odoo-rt-app | 10.100.0.0/16 → local; 0.0.0.0/0 → NAT Gateway | odoo-app-a, odoo-app-b |
+| odoo-rt-data | 10.100.0.0/16 → local (sin salida a Internet) | odoo-data-a, odoo-data-b |
+
 ### 1.5 Grupos de seguridad
 ### 1.6 Por qué Odoo necesita EFS y RDS
 ### 1.7 Estimación de costes
