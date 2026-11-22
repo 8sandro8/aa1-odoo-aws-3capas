@@ -89,6 +89,16 @@ Tabla de los 5 grupos de seguridad, encadenados entre sí: cada capa solo admite
 | SG-Postgres | RDS | 5432 | SG-EC2 | Solo los servidores Odoo hablan con la base de datos. |
 
 ### 1.6 Por qué Odoo necesita EFS y RDS
+
+El Auto Scaling Group puede eliminar una instancia en cualquier momento (si baja la carga o si falla el health check) y crear otra nueva. Cuando una instancia desaparece, se va con ella su disco y todo lo que había dentro del contenedor. Por eso las instancias de Odoo no pueden guardar nada importante: tienen que ser desechables, como los camareros de una cafetería, que entran y salen del turno mientras el negocio sigue funcionando.
+
+| Qué se guarda | Dónde va | Qué pasaría si estuviera en la instancia |
+|---|---|---|
+| Los datos del negocio (clientes, facturas, pedidos) | RDS PostgreSQL Multi-AZ | Se perderían al borrar la instancia y cada servidor tendría su propia base de datos, distinta de las demás. Con RDS hay una única base de datos, con una copia en la otra zona. Es la caja fuerte de la cafetería, con copia en otro local. |
+| Adjuntos (filestore), logotipos, plantillas y sesiones | EFS, montado en `/var/lib/odoo` del contenedor | Cada instancia tendría sus propios ficheros: el ALB te llevaría a una u otra y verías cosas distintas, y las sesiones se perderían al cambiar de instancia. Con EFS todas ven lo mismo. Es el almacén compartido por todos los camareros. |
+
+Así, una instancia nueva solo tiene que conectarse a la misma base de datos y montar el mismo EFS para quedar lista, sin perder nada. Da igual qué camarero esté de turno.
+
 ### 1.7 Estimación de costes
 
 ## Fase 2. Capa de red y seguridad
